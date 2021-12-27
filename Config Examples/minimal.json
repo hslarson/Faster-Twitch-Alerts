@@ -1,0 +1,20 @@
+{
+	"Twitch Settings" : {
+		"Client ID" : "YOUR CLIENT ID",
+		"Secret" : "YOUR SECRET",
+		"Reconnect Attempts" : 10,
+		"Reconnect Cooldown" : 60,
+		"Refresh Rate" : 1
+	},
+	"Logger Settings" : {
+		"Log Level" : "Info",
+		"Log Filepath" : "logs/twitch_alerts.log",
+		"Message Text" : "'{message.capitalize()}' Alert for {name}"
+	},
+	"Streamers" : {
+		"moistcr1tikal" : {
+			"Ban Status" : false,
+			"User ID" : "132230344"
+		}
+	}
+}

@@ -1,0 +1,8 @@
+# Hide the Actual Config File Since it May Contain Webhook URL's and API Keys
+config.json
+
+# Hide Junk Files
+__pycache__/
+Junk/
+logs/
+Test-Bench.py

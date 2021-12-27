@@ -1,0 +1,56 @@
+{
+	"Twitch Settings" : {
+		"Client ID" : "YOUR CLIENT ID",
+		"Secret" : "YOUR SECRET",
+		"Reconnect Attempts" : 10,
+		"Reconnect Cooldown" : 60,
+		"Refresh Rate" : 1
+	},
+	"Logger Settings" : {
+		"Log Level" : "Info",
+		"Log Filepath" : "logs/twitch_alerts.log",
+		"Message Text" : "'{message.capitalize()}' Alert for {name}"
+	},
+	"Discord Settings" : {
+		"Soon Cooldown" : 300,
+		"Alerts" : "all",
+		"Webhook URL" : "SOME WEBHOOK URL",
+		"Bot Username" : "Faster Twitch Alerts",
+		"Avatar URL" :   "Link to Avatar Image",
+		"Discord ID" :   "Some Discord ID",
+        "Message Text" : {
+			"ban" : "{name} Was Just Banned",
+			"unban" : "{name} Was Just Unbanned",
+			"live" : "{name} Just Went Live",
+			"offline" : "{name} Just Went Offline",
+			"title" : "{name} Changed Their Title to \"{title}\"",
+			"game" : "{name} Changed Their Game to \"{game}\""
+		}
+	},
+	"Pushover Settings" : {
+		"Soon Cooldown" : 300,
+		"Alerts" : "all",
+		"API Token" : "YOUR API TOKEN",
+		"Group Key" : "YOUR GROUP KEY",
+		"Devices" : "Some Devices",
+		"Priority" : 1,
+		"Embed URL" : "https://www.twitch.tv/{name.lower()}",
+		"URL Title" : "Go To Stream",
+		"Sound" : "Some Sound",
+		"Message Title" : "Faster Twitch Alerts",
+		"Message Text" : {
+			"live" : "{name} is Live Right Now! \ud83d\udce1",
+			"title" : "{name} Might Be Going Live Soon! \u231b",
+			"game" : "{name} Might Be Going Live Soon! \u231b",
+			"offline" : "{name} Just Went Offline \ud83d\ude14",
+			"ban" : "{name} Just Got Banned \u2696\ufe0f",
+			"unban" : "{name} has Been Unbanned! \ud83c\udf89"
+		}
+	},
+	"Streamers" : {
+		"moistcr1tikal" : {
+			"Ban Status" : false,
+			"User ID" : "132230344"
+		}
+    }
+}
