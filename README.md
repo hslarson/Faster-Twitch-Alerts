@@ -27,7 +27,7 @@ Disclaimer: This program is not associated in any way with Twitch, Discord, or P
 
 ## __Getting Started__
 1. Clone the repository
-2. Install the Python 3 and the Python requests library
+2. Install Python (≥3.6) and the aiohttp Library
 3. Set your notification preferences in the [config.json File](#config-fields-explained)
 4. Run Main.py
     - If the program terminates unexpectedly, check the log file for more information
@@ -341,7 +341,7 @@ Note that keywords are parsed in order, for example
 
 
 ## Special Formatting
-Sometimes we want more customization beyond what a normal string can offer. For this reason we've created a special formatting system for certain fields.
+Sometimes we want more customization beyond what a normal string can offer. For this reason, we've created a special formatting system for certain fields.
 <br><br>
 
 __Here's how it works:__
@@ -349,24 +349,24 @@ __Here's how it works:__
 Every statement in curly braces will be evaluated by the formatter. The formatter understands Python and expects a string to be returned by whatever is contained in the braces.
 <br><br>
 
-There are a few local variables we can use as well. These fields will change depending on the alert type and the streamer.
-| Variable | Description |
-| - | - |
-| time | Evaluates to time.localtime() |
-| name | The username of the streamer |
-| title | The streamer's current stream title |
-| game | The streamer's current game category |
-| message | The [alert type](#alert-types) of the message |
-| discord_id | The user-specified Discord ID for the message |
+There are a few local variables we can use as well:
+| Variable | Datatype | Description |
+| - | - | - |
+| time | struct_time | Evaluates to time.localtime() |
+| name | str | The username of the streamer |
+| title | str | The streamer's current stream title |
+| game | str | The streamer's current game category |
+| message | str | The [alert type](#alert-types) of the message |
+| discord_id | str | The user-specified Discord ID for the message |
 <br>
 
-Due to the way Python interprets strings, we may need alternate ways to specify escape characters. Below are the currently available alternatives
-| Variable | Description |
-| - | - |
-| nl | newline |
-| tb | tab |
-| dq | double quote |
-| sq | single quote |
+Due to the way Python interprets strings, we may need alternate ways to specify escape characters. Below are the currently available alternatives:
+| Variable | Datatype | Description |
+| - | - | - |
+| nl | str | newline |
+| tb | str | tab |
+| dq | str | double quote |
+| sq | str | single quote |
 <br>
 
 __Examples:__
