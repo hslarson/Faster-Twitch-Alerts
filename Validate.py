@@ -305,8 +305,9 @@ def validate():
 
 		# Do A Dry-Run of Logger Alerts
 		if str(Config.config_file["Logger Settings"]["Log Level"]).upper()in {"INFO", "DEBUG"}:
-			try:
-				test_alerts("GLOBAL", "Logger")
+			try: test_alerts("GLOBAL", "Logger")
+			
+			except (KeyboardInterrupt, GeneratorExit): raise
 			except:
 				warnings.add("Missing or Incomplete \"Message Text\" Fields in \"Logger Settings\".\n\tChange Log Level or Provide Message Text for All Alert Types if You Don't Want to See This Message")
 

@@ -37,7 +37,7 @@ class Notifications():
 			raise RequestsError(payload, err)		
 
 		if response.status // 100 != 2:
-			raise BadResponseCodeError(payload, response)
+			raise BadResponseCodeError(response)
 
 
 

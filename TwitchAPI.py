@@ -89,7 +89,7 @@ class TwitchAPI():
 
 				# Handle Bad Reponse Codes
 				if token.status // 100 != 2:
-					raise BadResponseCodeError(request_body, token)
+					raise BadResponseCodeError(token)
 
 				# Extract token and expiration time
 				token_json = await token.json()

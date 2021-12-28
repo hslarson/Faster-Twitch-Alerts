@@ -11,7 +11,6 @@ class Log():
 	initialized = asyncio.Event()
 	
 
-
 	# Sets Up the Log File and Error Handler
 	# Pre-condition: Log Level Has Been Set in Config File
 	# Post-condition: Logger Has Been Created and A Log File Has Been Generated in logs/
@@ -35,6 +34,8 @@ class Log():
 			Log.logger.addHandler(handler)
 
 		# Handle Exceptions or Set All-Good Flag
+		except (KeyboardInterrupt, GeneratorExit):
+			raise
 		except BaseException as err:
 			raise LogInitError(err)
 		else:
@@ -47,7 +48,6 @@ class Log():
 		if config != None:
 			log_level = str(config["Logger Settings"]["Log Level"]).upper()
 			Log.logger.setLevel(eval("logging." + log_level))
-
 
 
 
@@ -65,7 +65,7 @@ class Log():
 
 
 	# Handles All Errors that Make it to Main.py
-	# Pre-condition: An Error has Occured in One of the Try/Except Blocks in Main.py
+	# Pre-condition: An Error has Occurred in One of the Try/Except Blocks in Main.py
 	# Post-Condition: The Error Has Been Handled and the Return Code Has Indicated if the Error is Fatal (true->program ends, false->program continues)
 	async def fail(exception):
 
@@ -99,6 +99,7 @@ class Log():
 
 		elif type(exception) == BadResponseCodeError:
 			msg = "Got a Bad Response Code From Request in Function " + exception.function + ". Status Code: " + str(exception.response.status)
+			msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
 			msg += "\nResponse:\n" + str(await exception.response.json())
 			Log.logger.warning(msg)
 			
@@ -106,11 +107,12 @@ class Log():
 			if exception.response.status // 100 == 4:
 				return True
 			
-			return Log.__reconnect()
+			return await Log.__reconnect()
 
 		# TwitchAPI Errors
 		elif type(exception) ==  MalformedResponseError:
 			msg = "Couldn't Read Response From TwitchAPI.get_response(). Status Code: " + str(exception.response.status)
+			msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
 			msg += "\nResponse:\n" + str(await exception.response.json())
 			Log.logger.warning(msg)
 			return False
