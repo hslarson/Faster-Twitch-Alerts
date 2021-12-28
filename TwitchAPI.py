@@ -94,7 +94,7 @@ class TwitchAPI():
 				# Extract token and expiration time
 				token_json = await token.json()
 				oauth_token = token_json["access_token"]
-				TwitchAPI.reload_token = time.time() + int(token_json["expires_in"])
+				TwitchAPI.reload_token = time.time() + int(token_json["expires_in"]) - 3600
 
 			# Handle Exceptions
 			except (KeyboardInterrupt, GeneratorExit, BadResponseCodeError, KeyError):
@@ -120,9 +120,9 @@ class TwitchAPI():
 		
 		# Reload OAuth Token if Necessary
 		if time.time() > TwitchAPI.reload_token:
-			TwitchAPI.get_token()
+			await TwitchAPI.get_token()
 
-		# Generate Coroutines Array
+		# Generate Coroutines Array for Requests
 		coros = []
 		for req_type in ["Channel", "Stream"]:
 			coros += [TwitchAPI.requests.get(url, headers=TwitchAPI.auth_dict) for url in TwitchAPI.URL_STRINGS[req_type]]
