@@ -37,7 +37,7 @@ async def init():
 
 	# Initialize Modules
 	Log.init(Config.config_file)
-	await TwitchAPI.init(Config.config_file)
+	TwitchAPI.init(Config.config_file)
 	Notifications.init(Config.config_file)
 
 	# Display Any Warnings that Arose During the Config Validation Process

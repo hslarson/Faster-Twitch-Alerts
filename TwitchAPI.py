@@ -9,7 +9,11 @@ class TwitchAPI():
 
 	# Initialize Module
 	# Pre-Condition: The Config File Has Been Loaded and Validated
-	async def init(config):
+	def init(config):
+
+		# OAuth Token Variables
+		TwitchAPI.reload_token = 0
+		TwitchAPI.auth_dict = None
 		
 		# Load Constants
 		TwitchAPI.CLIENT_ID = config["Twitch Settings"]["Client ID"]
@@ -20,11 +24,6 @@ class TwitchAPI():
 		# Start requests session
 		client_timeout = aiohttp.ClientTimeout(total=10)
 		TwitchAPI.requests = aiohttp.ClientSession(timeout=client_timeout)
-
-		# Get OAuth Token
-		TwitchAPI.reload_token = 0
-		TwitchAPI.auth_dict = None
-		await TwitchAPI.get_token(True)
 
 
 
@@ -120,7 +119,7 @@ class TwitchAPI():
 		
 		# Reload OAuth Token if Necessary
 		if time.time() > TwitchAPI.reload_token:
-			await TwitchAPI.get_token()
+			await TwitchAPI.get_token(True)
 
 		# Generate Coroutines Array for Requests
 		coros = []
