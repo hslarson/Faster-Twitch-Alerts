@@ -18,7 +18,7 @@ initialized = asyncio.Event()
 
 # Runs Once to Initialize Modules and Builds Streamer Dict.
 # Pre-Condition: Modules Have Been Included and Global Variables Have Been Declared
-# Post-Condition: All Modules Have Been Initialized and the Stremer Dictionary has Been Populated
+# Post-Condition: All Modules Have Been Initialized and the Streamer Dictionary has Been Populated
 async def init():
 	global streamer_dict
 	global refresh_rate
@@ -48,11 +48,11 @@ async def init():
 	# Initialize the Dictionary of Streamers
 	streamer_dict = await Streamer.init_all(Config.config_file)
 
-	# Initialize Add-Ons
+	# Initialize Plugins
 	if "Pushover" in Config.enabled_modules:
 		from Plugins.Pushover import Pushover
 		Pushover.init(streamer_dict)
-			
+
 	if "Discord" in Config.enabled_modules:
 		from Plugins.Discord import Discord
 		Discord.init(streamer_dict)
@@ -88,25 +88,25 @@ async def poll():
 # Primary Error Handler
 # Pre-Condition: An Error Has Been Caught in main()
 # Post-Condition: Errors Have Been Recorded by Log Module or Recursion Limit Was Hit
-async def error_handler(exception, kill_event):
+def error_handler(loop, exception, kill_event):
 
 	# Call Recursive Function
-	fatal = await error_helper(exception, 0)
+	fatal = error_helper(loop, exception, 0)
 
 	# Perform Shutdown Operations
 	if fatal or not initialized.is_set():
 		kill_event.set()
-		await shutdown()
+		loop.run_until_complete(shutdown())
 
 
 
 # Recursive Helper for Error Handler
 # Returns True for Fatal Errors
-async def error_helper(exception, recursion_count=0):
+def error_helper(loop, exception, recursion_count):
 
 	# Terminate the Program if More than 5 Errors Occur
 	if recursion_count >= 5:
-		print("\nToo Many Errors Occured While Handling Error!")
+		print("\nToo Many Errors Occurred While Handling Error!")
 		print("Displaying Errors (Earliest First):\n")
 		print("-"*50)
 		traceback.print_exception(type(exception), exception, exception.__traceback__)
@@ -115,11 +115,12 @@ async def error_helper(exception, recursion_count=0):
 		return True
 
 	# Try to Handle the Original Exception
-	try: return await Log.fail(exception)
-	
+	try:
+		return loop.run_until_complete(Log.fail(exception))
+
 	# If Any Errors Occur During the Handling of that Exception, Handle Those As Well
 	except BaseException as err:
-		return await error_helper(err,  recursion_count + 1)
+		return error_helper(loop, err, recursion_count + 1)
 
 
 
@@ -144,7 +145,7 @@ async def shutdown():
 # Post-Condition: The terminate Event Has Been Set in error_handler()
 def main():
 	loop = asyncio.get_event_loop()
-	
+
 	terminate = asyncio.Event()
 	while not terminate.is_set():
 		
@@ -154,7 +155,7 @@ def main():
 			loop.run_until_complete( poll() )
 
 		except BaseException as err:
-			loop.run_until_complete( error_handler(err, terminate) )	
+			error_handler(loop, err, terminate)
 
 	loop.close()
 
@@ -163,4 +164,3 @@ def main():
 # Start Event Loop
 if __name__ == "__main__":
 	main()
-	
