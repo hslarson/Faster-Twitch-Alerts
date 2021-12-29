@@ -7,6 +7,7 @@ import time
 
 class Streamer():
 
+
 	# Constructor for Individual Streamer Objects
 	def __init__(self, username, user_id, ban_status):
 		self.name = username
@@ -21,8 +22,6 @@ class Streamer():
 		self.module_preferences = {}
 		self.module_last_change = {}
 
-		self.notification_queue = []
-
 
 
 	# Updates A Streamer Object's Internal Variables Given Fresh Data
@@ -36,7 +35,7 @@ class Streamer():
 		# If Ban Status Changes, Update Config File and Send a Notification
 		if ban_status != self.ban_status:
 			await Config.update_ban_status(self.name, ban_status)
-			self.notification_queue.append("ban" if ban_status else "unban")
+			Notifications.Handler.new_alert(self.name, "ban" if ban_status else "unban")
 			self.ban_status = ban_status
 
 		if self.ban_status == True:
@@ -52,7 +51,7 @@ class Streamer():
 
 			# Otherwise Send a Live Notification
 			else:
-				self.notification_queue.append("live")
+				Notifications.Handler.new_alert(self.name, "live")
 
 			# Update State Variables
 			self.is_live = True
@@ -62,18 +61,18 @@ class Streamer():
 
 			# Send Offline Notification
 			if self.is_live:
-				self.notification_queue.append("offline")
+				Notifications.Handler.new_alert(self.name, "offline")
 
 			else:
 				
 				# Check for Game Changes
 				if self.last_game != channel_info["game_name"]:
-					self.notification_queue.append("game")
+					Notifications.Handler.new_alert(self.name, "game")
 					self.last_game = channel_info["game_name"]
 
 				# Check for Title Changes
 				elif self.last_title != channel_info["title"]:
-					self.notification_queue.append("title")
+					Notifications.Handler.new_alert(self.name, "title")
 					self.last_title = channel_info["title"]
 
 			self.is_live = False
@@ -106,7 +105,7 @@ class Streamer():
 			ban_status = (channel_response[user]["delay"] == None)
 			if ban_status != streamer_dict[user].ban_status:
 				await Config.update_ban_status(user, ban_status)
-				streamer_dict[user].notification_queue.append("ban" if ban_status else "unban")
+				Notifications.Handler.new_alert(user, "ban" if ban_status else "unban")
 				streamer_dict[user].ban_status = ban_status
 
 			# Update Stream State Variables

@@ -7,6 +7,7 @@ import time
 
 class Notifications():
 
+
 	# Initialize the Module
 	# Pre-Condition: The Config File Has Been Loaded and Validated
 	def init(config):
@@ -22,7 +23,7 @@ class Notifications():
 
 
 	# General Function for Sending Pushover and Discord Alerts
-	# Pre-Condition: A Message Payload Has Been Generated in the Pusover/Discord Modules
+	# Pre-Condition: A Message Payload Has Been Generated in the Pushover/Discord Modules
 	# Post-Condition: The Message Has Been Sent or An Error Occurred
 	async def send(url, type, payload):
 		try:
@@ -97,47 +98,107 @@ class Notifications():
 
 
 
-	# Cycle Through the Notification Queue and Send All Messages
-	# Post-Condition: All Notifications Have Been Sent and the Streamers' Notification Queues are Empty
-	async def send_all(streamer_dict, logger):
+	# A Helper Function for Handler.new_alert()
+	# Post-Condition: Notifications Have Been Sent By Logger and All Enabled Modules
+	async def send_helper(streamer_obj, message, logger, pushover_enabled, discord_enabled):
+		
+		# Send Log Notification
+		log_msg = Notifications.preference_resolver("Message Text", message, Notifications.LOGGER_GLOBAL_SETTINGS)
+		if log_msg != None:						
+			logger.info( Notifications.special_format(
+				str(log_msg),
+
+				name = streamer_obj.name,
+				title = streamer_obj.last_title,
+				game = streamer_obj.last_game,
+				message = message
+			))
+
+		# Send Pushover and Discord Notifications
 		coros = []
-		for streamer in streamer_dict:
-			coros.append(Notifications.send_helper(streamer_dict, streamer, logger, "Pushover" in Config.enabled_modules, "Discord"  in Config.enabled_modules))	
-		
-		await asyncio.gather(*coros, return_exceptions=False)
+		if pushover_enabled:
+			coros.append(Notifications.pushover(streamer_obj, message))
+
+		if discord_enabled:
+			coros.append(Notifications.discord(streamer_obj, message))
+
+		if len(coros):
+			await asyncio.gather(*coros, return_exceptions=False)
 
 
 
-	# A Recursive Helper for send_all()
-	# Post-Condition: An Individual Streamer's Notification Queue Has Been Cleared
-	async def send_helper(streamer_dict, streamer, logger, pushover_enabled, discord_enabled):
-		
-		# Send Notifications in Order
-		while len(streamer_dict[streamer].notification_queue):
-			message = streamer_dict[streamer].notification_queue[0]
+	# Creates asyncio Tasks for Incoming Alerts and Manages Exceptions & Cancellations Related to Those Tasks
+	class Handler:
 
-			# Send Log Notification
-			log_msg = Notifications.preference_resolver("Message Text", message, Notifications.LOGGER_GLOBAL_SETTINGS)
-			if log_msg != None:						
-				logger.info( Notifications.special_format(
-					str(log_msg),
+		all_tasks = []
 
-					name = streamer,
-					title = streamer_dict[streamer].last_title,
-					game = streamer_dict[streamer].last_game,
-					message = message
-				))
 
-			# Send Pushover and Discord Notifications
-			coros = []
-			if pushover_enabled:
-				coros.append(Notifications.pushover(streamer_dict[streamer], message))
+		# Initializes the Handler With the Info Needed to Make Alerts
+		def start(loop, streamer_dict, logger):
+			Notifications.Handler.main_loop = loop
+			Notifications.Handler.streamer_dict = streamer_dict
+			Notifications.Handler.logger = logger
 
-			if discord_enabled:
-				coros.append(Notifications.discord(streamer_dict[streamer], message))
 
-			if len(coros):
-				await asyncio.gather(*coros, return_exceptions=False)
 
-			# Remove Message From Queue
-			streamer_dict[streamer].notification_queue.pop(0)
+		# Cancels All Pending Tasks
+		# Post-Condition: All Tasks Have Been Cancelled
+		async def stop():
+
+			# Call Cancel Functions
+			for task in Notifications.Handler.all_tasks:
+				if not task.done():
+					task.cancel()
+
+			# Wait for All the Tasks to Finish
+			# No Exception Handling Since the Program is Exiting
+			await asyncio.gather(*Notifications.Handler.all_tasks, return_exceptions=True)
+
+
+
+		# Create a New Alert Task
+		# Pre-Condition: An Alert Has Been Triggered in the Streamer Module
+		# Post-Condition: A New Task Has Been Created and Appended to the all_tasks List
+		def new_alert(username, message):
+
+			# Construct Coroutine
+			coro = Notifications.send_helper(
+				Notifications.Handler.streamer_dict[username],
+				message, 
+				Notifications.Handler.logger, 
+				"Pushover" in Config.enabled_modules, 
+				"Discord"  in Config.enabled_modules
+			)
+
+			# Create Task and Add it to List
+			Notifications.Handler.all_tasks.append( Notifications.Handler.main_loop.create_task(coro) )
+
+
+
+		# Cleans the 'all_tasks' List and Raises Exceptions if There are Any
+		# Post-Condition: Functions that Finished Successfully Have Been Removed from the List and the Oldest Exception (if Any) Has Been Raised and Removed
+		def check_tasks():
+			first_err = None
+			out = []
+
+			for task in Notifications.Handler.all_tasks:
+				
+				# Save Pending Tasks
+				if task.done():
+
+					# Store the First Exception we Find
+					# Save All Other Exceptions
+					if task.exception():
+						if first_err == None:
+							first_err = task.exception()
+						else:
+							out.append(task)
+				else:
+					out.append(task)
+			
+			# Replace Old List With Cleaned List
+			Notifications.Handler.all_tasks = out
+
+			# Raise the First Error if THere Was One
+			if first_err:
+				raise first_err

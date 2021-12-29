@@ -1,3 +1,4 @@
+from logging import exception, fatal
 from Notifications import Notifications
 from TwitchAPI import TwitchAPI
 from Streamer import Streamer
@@ -13,6 +14,7 @@ import time
 streamer_dict = {}
 refresh_rate = 1
 initialized = asyncio.Event()
+terminate = asyncio.Event()
 
 
 
@@ -22,11 +24,6 @@ initialized = asyncio.Event()
 async def init():
 	global streamer_dict
 	global refresh_rate
-	global initialized
-
-	# Don't Initialize Multiple Times
-	if initialized.is_set():
-		return
 
 	# Load and Validate The Config File
 	await Config.load()
@@ -69,15 +66,17 @@ async def init():
 async def poll():
 	global streamer_dict
 
+	# Continuously Update Streamer Data
 	while True:
+
 		# Start a Timer
 		start = time.time()
 
+		# Checks Errors that Arose While Sending Notifications
+		Notifications.Handler.check_tasks()
+
 		# Get New Info on Streamers
 		await Streamer.refresh_all(streamer_dict)
-
-		# Handle Any Notifications that Arise
-		await Notifications.send_all(streamer_dict, Log.logger)
 
 		# Try to Maintain a Constant Refresh Rate
 		time_remaining = (start + 1.0 / refresh_rate) - time.time()
@@ -88,14 +87,14 @@ async def poll():
 # Primary Error Handler
 # Pre-Condition: An Error Has Been Caught in main()
 # Post-Condition: Errors Have Been Recorded by Log Module or Recursion Limit Was Hit
-def error_handler(loop, exception, kill_event):
+def error_handler(loop, exception):
 
 	# Call Recursive Function
 	fatal = error_helper(loop, exception, 0)
 
 	# Perform Shutdown Operations
 	if fatal or not initialized.is_set():
-		kill_event.set()
+		terminate.set()
 		loop.run_until_complete(shutdown())
 
 
@@ -129,6 +128,9 @@ def error_helper(loop, exception, recursion_count):
 # Post-Condition: All Modules Have Been Shut Down and a Closing Log Message Has Been Sent
 async def shutdown():
 
+	# Kill All Alert Tasks
+	await Notifications.Handler.stop()
+
 	# Kill ClientSession Objects
 	if hasattr(TwitchAPI, 'requests'):
 		await TwitchAPI.requests.close()
@@ -145,17 +147,18 @@ async def shutdown():
 # Post-Condition: The terminate Event Has Been Set in error_handler()
 def main():
 	loop = asyncio.get_event_loop()
+	loop.set_exception_handler(lambda l, c: None) # Suppress Errors
 
-	terminate = asyncio.Event()
 	while not terminate.is_set():
-		
-		# Run Primary Methods
 		try:
-			loop.run_until_complete( init() )
+			if not initialized.is_set():
+				loop.run_until_complete( init() )
+				Notifications.Handler.start(loop, streamer_dict, Log.logger)
+
 			loop.run_until_complete( poll() )
 
 		except BaseException as err:
-			error_handler(loop, err, terminate)
+			error_handler(loop, err)
 
 	loop.close()
 

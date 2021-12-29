@@ -27,7 +27,7 @@ Disclaimer: This program is not associated in any way with Twitch, Discord, or P
 
 ## __Getting Started__
 1. Clone the repository
-2. Install Python (≥3.6) and the aiohttp Library
+2. Install Python (≥3.7) and the aiohttp Library
 3. Set your notification preferences in the [config.json File](#config-fields-explained)
 4. Run Main.py
     - If the program terminates unexpectedly, check the log file for more information
