@@ -1,4 +1,3 @@
-from logging import exception, fatal
 from Notifications import Notifications
 from TwitchAPI import TwitchAPI
 from Streamer import Streamer

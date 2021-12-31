@@ -5,6 +5,7 @@ import asyncio
 import time
 
 
+# A Class For Interacting With the Twitch API
 class TwitchAPI():
 
 	# Initialize Module

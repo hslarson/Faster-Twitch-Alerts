@@ -3,6 +3,7 @@ from Config import Config
 import time
 
 
+# A Class for Constructing Discord Notifications
 class Pushover():
 
 	# Initialize Module

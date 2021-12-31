@@ -5,6 +5,7 @@ import asyncio
 import time
 
 
+# A Class for Storing and Updating Streamer Data
 class Streamer():
 
 

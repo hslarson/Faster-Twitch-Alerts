@@ -5,6 +5,7 @@ import asyncio
 import os
 
 
+# A Class for Logging and Exception Handling
 class Log():
 
 	logger = None
