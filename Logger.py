@@ -106,6 +106,13 @@ class Log():
 			return await Log.__reconnect()
 
 		elif type(exception) == BadResponseCodeError:
+			
+			# Let Requests Bucket Replenish
+			if exception.response.status == 429:
+				Log.logger.warning("Twitch API Rate Limit Hit! Reduce Refresh Rate to Prevent This Warning in the Future.")
+				await asyncio.sleep(60)
+				return False
+
 			msg = "Got a Bad Response Code From Request in Function " + exception.function + ". Status Code: " + str(exception.response.status)
 			msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
 			msg += "\nResponse:\n" + str(await exception.response.json())
