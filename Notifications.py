@@ -105,7 +105,7 @@ class Notifications():
 		# Send Log Notification
 		log_msg = Notifications.preference_resolver("Message Text", message, Notifications.LOGGER_GLOBAL_SETTINGS)
 		if log_msg != None:						
-			logger.info( Notifications.special_format(
+			logger.alert( Notifications.special_format(
 				str(log_msg),
 
 				name = streamer_obj.name,
@@ -132,10 +132,16 @@ class Notifications():
 
 		all_tasks = []
 
+		main_loop = None
+		streamer_dict = None
+		logger = None
+
 
 		# Initializes the Handler With the Info Needed to Make Alerts
 		def start(loop, streamer_dict, logger):
 			Notifications.Handler.main_loop = loop
+			loop.set_exception_handler(lambda l, c: None) # Suppress Errors
+
 			Notifications.Handler.streamer_dict = streamer_dict
 			Notifications.Handler.logger = logger
 

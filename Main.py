@@ -147,7 +147,6 @@ async def shutdown():
 # Post-Condition: The terminate Event Has Been Set in error_handler()
 def main():
 	loop = asyncio.get_event_loop()
-	loop.set_exception_handler(lambda l, c: None) # Suppress Errors
 
 	while not terminate.is_set():
 		try:

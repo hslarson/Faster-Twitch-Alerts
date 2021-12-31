@@ -108,10 +108,11 @@ Settings related to the log file
 __Footnotes:__
 - <sup>1</sup> More Info on Log Levels:
 	- DEBUG: Shows minor network errors
-	- INFO: Info about streamer activity, and general program info
+	- ALERT: Info about streamer activity
+	- INFO: General program info
 	- WARNING: Info about non-fatal errors
 	- ERROR: Info about fatal errors
-- <sup>2</sup> A warning will be displayed if field is incomplete and log level is either DEBUG or INFO
+- <sup>2</sup> A warning will be displayed if field is incomplete and log level is either DEBUG or ALERT
 <br><br>
 
 

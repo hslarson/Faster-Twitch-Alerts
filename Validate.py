@@ -47,7 +47,7 @@ LOGGER_REQUIRED_KEYS = {
 LOGGER_OPTIONAL_KEYS = {
 	"Message Text" : {str, dictOfStr}
 }
-LOGGER_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
+LOGGER_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "ALERT", "DEBUG", "NOTSET"}
 
 # Pushover Keys
 PUSHOVER_REQUIRED_KEYS = {
@@ -268,7 +268,7 @@ def validate():
 	
 	# Validate Log Level
 	if str(Config.config_file["Logger Settings"]["Log Level"]).upper() not in LOGGER_LOG_LEVELS:
-		("Unrecognized Log Level: \"" + str(Config.config_file["Logger Settings"]["Log Level"]) + "\". Defaulting to INFO.")
+		warnings.add("Unrecognized Log Level: \"" + str(Config.config_file["Logger Settings"]["Log Level"]) + "\". Defaulting to INFO.")
 
 	# Check Pushover Keys
 	if "Pushover Settings" in Config.config_file:
@@ -304,7 +304,7 @@ def validate():
 				check_keys(warnings, "Streamers/" + streamer + "/Pushover Settings", Config.config_file["Streamers"][streamer]["Pushover Settings"], optional_keys=PUSHOVER_OPTIONAL_KEYS)
 
 		# Do A Dry-Run of Logger Alerts
-		if str(Config.config_file["Logger Settings"]["Log Level"]).upper()in {"INFO", "DEBUG"}:
+		if str(Config.config_file["Logger Settings"]["Log Level"]).upper() in {"ALERT", "DEBUG"}:
 			try: test_alerts("GLOBAL", "Logger")
 			
 			except (KeyboardInterrupt, GeneratorExit): raise

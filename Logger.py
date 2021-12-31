@@ -41,10 +41,17 @@ class Log():
 		else:
 			Log.initialized.set()
 		
-
-		# Set Log Level (Defaults to INFO)
-		Log.logger.setLevel(logging.INFO)	
+		# Create Custom Log Level
+		logging.ALERT = 15
+		logging.addLevelName(logging.ALERT, "ALERT")
+		def alert(self, message, *args, **kws):
+			if self.isEnabledFor(logging.ALERT):
+				self._log(logging.ALERT, message, args, **kws) 
+		logging.Logger.alert = alert
 		
+		# Set Log Level (Defaults to INFO)
+		Log.logger.setLevel(logging.INFO)
+
 		if config != None:
 			log_level = str(config["Logger Settings"]["Log Level"]).upper()
 			Log.logger.setLevel(eval("logging." + log_level))
