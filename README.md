@@ -1,7 +1,7 @@
 # __Faster Twitch Alerts__
 
 <span>
-	<img src="https://img.shields.io/maintenance/yes/2021" alt="maintenance status" />
+	<img src="https://img.shields.io/maintenance/yes/2022" alt="maintenance status" />
 	<img src="https://img.shields.io/github/last-commit/hslarson/Faster-Twitch-Alerts" alt="github last commit" />
 	<img src="https://img.shields.io/github/issues/hslarson/Faster-Twitch-Alerts" alt="github issues">
 	<img src="https://img.shields.io/github/license/hslarson/Faster-Twitch-Alerts" alt="github license" />
