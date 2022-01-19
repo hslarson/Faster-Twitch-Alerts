@@ -106,29 +106,35 @@ class Log():
 			return await Log.__reconnect()
 
 		elif type(exception) == BadResponseCodeError:
-			
-			# Let Requests Bucket Replenish
-			if exception.response.status == 429:
-				Log.logger.warning("API Rate Limit Hit! Reduce Refresh Rate to Prevent This Warning in the Future.")
-				await asyncio.sleep(60)
-				return False
+			msg = "Got a Bad Response Code From Request in Function " + exception.function + ". Status Code: " + str(exception.status_code)
+			try:
+				msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
+				msg += "\nResponse:\n"    + str(await exception.response.text())
+			except: pass
 
-			msg = "Got a Bad Response Code From Request in Function " + exception.function + ". Status Code: " + str(exception.response.status)
-			msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
-			msg += "\nResponse:\n" + str(await exception.response.text())
 			Log.logger.warning(msg)
 			
 			# Kill Program if the Request Was Bad
 			if exception.response.status // 100 == 4:
+
+				# Handle Rate-Limit Errors
+				if exception.response.status == 429:
+					await asyncio.sleep(60)
+					return False
+
 				return True
 			
 			return await Log.__reconnect()
 
 		# TwitchAPI Errors
 		elif type(exception) ==  MalformedResponseError:
-			msg = "Couldn't Read Response From TwitchAPI.get_response(). Status Code: " + str(exception.response.status)
-			msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
-			msg += "\nResponse:\n" + str(await exception.response.text())
+			msg = "Couldn't Read Response From TwitchAPI.get_response(). Status Code: " + str(exception.status_code)
+			try:
+				msg += "\nRequest URL:\n" + str(exception.response.request_info.real_url)
+				msg += "\nResponse:\n"    + str(await exception.response.text())
+			except: pass
+
+			msg += "\nException Details:\n" + exception.details
 			Log.logger.warning(msg)
 			return False
 

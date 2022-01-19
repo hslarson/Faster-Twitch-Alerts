@@ -1,3 +1,4 @@
+from aiohttp import ClientResponse
 import traceback
 
 
@@ -30,13 +31,22 @@ class BadResponseCodeError(Error):
 	def __init__(self, response):
 		self.function = Error.get_function()
 		self.response = response
+		self.status_code = 0
+
+		if type(self.response) == ClientResponse:
+			self.status_code = self.response.status
 
 
 # *** TwitchAPI Errors ***
 # Error for Unreadable Response JSON's
 class MalformedResponseError(Error):
-	def __init__(self, response):
+	def __init__(self, response, exception):
+		self.details = Error.exception_str(exception)
 		self.response = response
+		self.status_code = 0
+
+		if type(self.response) == ClientResponse:
+			self.status_code = self.response.status
 
 # Kills Program Once Reconnect Attempts are Exhausted
 class MaxReconnectAttempts(Error):
