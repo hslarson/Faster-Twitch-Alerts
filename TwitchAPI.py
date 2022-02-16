@@ -189,5 +189,5 @@ class TwitchAPI():
 
 		except (KeyboardInterrupt, GeneratorExit):
 			raise
-		except:
-			raise MalformedResponseError(response)
+		except BaseException as err:
+			raise MalformedResponseError(response, err)
