@@ -1,5 +1,6 @@
 from Config import Config
 from Exceptions import *
+import concurrent.futures._base
 import aiohttp
 import asyncio
 import time
@@ -87,12 +88,12 @@ class TwitchAPI():
 								"&grant_type=client_credentials")
 				token = await TwitchAPI.requests.post(request_body, headers=None)
 
-				# Handle Bad Reponse Codes
+				# Handle Bad Response Codes
 				if token.status // 100 != 2:
 					raise BadResponseCodeError(token)
 
 				# Extract token and expiration time
-				token_json = await token.json()
+				token_json = await token.json_safe()
 				oauth_token = token_json["access_token"]
 				TwitchAPI.reload_token = time.time() + int(token_json["expires_in"]) - 3600
 
@@ -114,8 +115,8 @@ class TwitchAPI():
 
 
 	# Calls the Twitch API for Up-To-Date Streamer Information
-	# Pre-Condition: THe Streamer DIctionary Has Been Initialized
-	# Post-Condition: Data Has Been Recieved, Validated, and Stored in Output Dictionaries
+	# Pre-Condition: THe Streamer Dictionary Has Been Initialized
+	# Post-Condition: Data Has Been Received, Validated, and Stored in Output Dictionaries
 	async def get_response(streamer_dict):
 		
 		# Reload OAuth Token if Necessary
@@ -157,9 +158,11 @@ class TwitchAPI():
 		if response.status // 100 != 2:
 			raise BadResponseCodeError(response)
 
+		# Get JSON
+		resp_json = await response.json_safe()
+
 		try:
 			# Iterate Over Response JSON
-			resp_json = await response.json()
 			for dictionary in resp_json["data"]:
 							
 				# Get Streamer's Display Name and ID
@@ -191,3 +194,15 @@ class TwitchAPI():
 			raise
 		except BaseException as err:
 			raise MalformedResponseError(response, err)
+
+
+
+async def json_safe(resp: ClientResponse):
+	try: return await resp.json()
+
+	# Wraps Timeout Error in Request Error
+	except concurrent.futures._base.TimeoutError as err:
+		raise RequestsError(err)
+	except: raise
+
+ClientResponse.json_safe = json_safe
