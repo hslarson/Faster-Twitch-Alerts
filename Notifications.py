@@ -1,3 +1,4 @@
+from sqlalchemy import false
 from Config import Config
 from Exceptions import *
 import aiohttp
@@ -101,7 +102,13 @@ class Notifications():
 
 	# A Helper Function for Handler.new_alert()
 	# Post-Condition: Notifications Have Been Sent By Logger and All Enabled Modules
-	async def send_helper(streamer_obj, message, logger, pushover_enabled, discord_enabled):
+	async def send_helper(streamer, message):
+
+		# Wait for the Handler to Finish Initializing
+		await Notifications.Handler.ready.wait()
+
+		streamer_obj = Notifications.Handler.streamer_dict[streamer]
+		logger = Notifications.Handler.logger
 		
 		# Send Log Notification
 		log_msg = Notifications.preference_resolver("Message Text", message, Notifications.LOGGER_GLOBAL_SETTINGS)
@@ -117,10 +124,10 @@ class Notifications():
 
 		# Send Pushover and Discord Notifications
 		coros = []
-		if pushover_enabled:
+		if "Pushover" in Config.enabled_modules:
 			coros.append(Notifications.pushover(streamer_obj, message))
 
-		if discord_enabled:
+		if "Discord" in Config.enabled_modules:
 			coros.append(Notifications.discord(streamer_obj, message))
 
 		if len(coros):
@@ -132,6 +139,7 @@ class Notifications():
 	class Handler:
 
 		all_tasks = []
+		ready = asyncio.Event()
 
 		main_loop = None
 		streamer_dict = None
@@ -139,12 +147,9 @@ class Notifications():
 
 
 		# Initializes the Handler With the Info Needed to Make Alerts
-		def start(loop, streamer_dict, logger):
+		def start(loop):
 			Notifications.Handler.main_loop = loop
-			loop.set_exception_handler(lambda l, c: None) # Suppress Errors
-
-			Notifications.Handler.streamer_dict = streamer_dict
-			Notifications.Handler.logger = logger
+			Notifications.Handler.main_loop.set_exception_handler(lambda l, c: None) # Suppress Errors
 
 
 
@@ -169,13 +174,7 @@ class Notifications():
 		def new_alert(username, message):
 
 			# Construct Coroutine
-			coro = Notifications.send_helper(
-				Notifications.Handler.streamer_dict[username],
-				message, 
-				Notifications.Handler.logger, 
-				"Pushover" in Config.enabled_modules, 
-				"Discord"  in Config.enabled_modules
-			)
+			coro = Notifications.send_helper(username, message)
 
 			# Create Task and Add it to List
 			Notifications.Handler.all_tasks.append( Notifications.Handler.main_loop.create_task(coro) )

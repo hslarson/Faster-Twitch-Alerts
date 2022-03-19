@@ -44,6 +44,11 @@ async def init():
 	# Initialize the Dictionary of Streamers
 	streamer_dict = await Streamer.init_all(Config.config_file)
 
+	# Pass Info to Notification Handler
+	Notifications.Handler.streamer_dict = streamer_dict
+	Notifications.Handler.logger = Log.logger
+	Notifications.Handler.ready.set()
+
 	# Initialize Plugins
 	if "Pushover" in Config.enabled_modules:
 		from Plugins.Pushover import Pushover
@@ -150,9 +155,9 @@ def main():
 	while not terminate.is_set():
 		try:
 			if not initialized.is_set():
+				Notifications.Handler.start(loop)
 				loop.run_until_complete( init() )
-				Notifications.Handler.start(loop, streamer_dict, Log.logger)
-
+				
 			loop.run_until_complete( poll() )
 
 		except BaseException as err:
