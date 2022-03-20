@@ -1,3 +1,5 @@
+from typing import List
+from sympy import Li
 from Exceptions import ConfigFormatError
 from Notifications import Notifications
 from Config import Config
@@ -15,6 +17,9 @@ class dictOfInt(dictOf):
 
 class dictOfBool(dictOf):
 	DATATYPE = bool
+
+class dictOfList(dictOf):
+	DATATYPE = list
 
 
 
@@ -76,6 +81,7 @@ DISCORD_OPTIONAL_KEYS = {
 	"Avatar URL" :   {str, dictOfStr},
 	"Webhook URL" :  {str, dictOfStr},
 	"Message Text" : {str, dictOfStr},
+	"Embeds" :       {list, dictOfList},
 	"Discord ID" :   {str, dictOfStr},
 }
 

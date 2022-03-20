@@ -45,7 +45,7 @@ class Discord():
 
 		# Resolve User Preferences
 		preferences = {}
-		for keyword in ("Discord ID", "Message Text", "Webhook URL", "Bot Username", "Avatar URL"):
+		for keyword in ("Discord ID", "Message Text", "Webhook URL", "Bot Username", "Avatar URL", "Embeds"):
 			preferences[keyword] = Notifications.preference_resolver(keyword, message, Notifications.DISCORD_GLOBAL_SETTINGS, streamer_obj.module_preferences["Discord"])
 
 		# Format Message and Bot Username 
@@ -60,13 +60,33 @@ class Discord():
 					message = str(message),
 					discord_id = "[Null ID]" if preferences["Discord ID"] == None else preferences["Discord ID"]
 				)
+		
+		# Format Embeds
+		if preferences["Embeds"] != None:
+			for embed in preferences["Embeds"]:
+				for key in embed:
+					if type(embed[key]) == str:
+						embed[key] = Notifications.special_format(
+							embed[key],
+
+							name  = streamer_obj.name,
+							title = streamer_obj.last_title,
+							game  = streamer_obj.last_game,
+							message = str(message),
+							discord_id = "[Null ID]" if preferences["Discord ID"] == None else preferences["Discord ID"]
+						)
 
 		# Construct Body
-		data = {}
+		data = {
+			"allowed_mentions": {
+				"parse": ["everyone"]
+			}
+		}
 		data["content"] = preferences["Message Text"]
-			
+
 		if preferences["Bot Username"] != None: data["username"]   = preferences["Bot Username"]
 		if preferences["Avatar URL"]   != None: data["avatar_url"] = preferences["Avatar URL"]
-			
+		if preferences["Embeds"] != None: data["embeds"] = preferences["Embeds"]
+
 		# Send Message to Discord
 		await Notifications.send(preferences["Webhook URL"], Notifications.DISCORD, data)
