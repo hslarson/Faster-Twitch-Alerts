@@ -168,6 +168,12 @@ Global settings for Discord alerts
 	"Bot Username" : "Faster Twitch Alerts",
 	"Avatar URL" :   "Link to Avatar Image",
 	"Discord ID" :   "Some Discord ID",
+	"Embeds" : [
+		{
+			"title" : "Some Title",
+			"description" : "Some Description"
+		}
+	],
 	"Message Text" : "DISCORD ALERT!"
 }
 ```
@@ -182,19 +188,22 @@ Global settings for Discord alerts
 | Bot Username | The display name of the bot that will be the sender of the alert | No | str | Allowed | Allowed |
 | Avatar URL | A direct link to an image that will be the Discord bot's avatar | No | str | Allowed | Allowed |
 | Discord ID<sup>2</sup> | A Discord role/user ID that can be used to tag members of a Discord server. See below for examples | No | str | Allowed | Allowed |
+| Embeds | An list of up to 10 Discord embed objects<sup>3</sup> | No | list | Allowed | Allowed |
 | Message Text | Text to display when an [alert](#alert-types) is triggered | No<sup>1</sup> | str | Allowed | Allowed |
 
 __Footnotes:__
 - <sup>1</sup> These fields must be defined for all active alert types in either global settings or streamer-specific settings otherwise the program will terminate
 - <sup>2</sup> You can find user/role ID's by activating "Developer Mode" on Discord
+- <sup>3</sup> [Discord Embed Documentation](https://discord.com/developers/docs/resources/channel#embed-object)
 <br><br>
 
 __Discord Message Tips:__
 
 Mentions:
 ```
-Users: "<@discord_id>"
-Roles: "<@&discord_id>"
+Everyone, Here: @everyone, @here
+Users: "<@discord_user_id>"
+Roles: "<@&discord_role_id>"
 ```
 <br>
 
