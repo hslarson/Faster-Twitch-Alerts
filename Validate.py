@@ -1,5 +1,3 @@
-from typing import List
-from sympy import Li
 from Exceptions import ConfigFormatError
 from Notifications import Notifications
 from Config import Config

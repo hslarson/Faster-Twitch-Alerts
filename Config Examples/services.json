@@ -18,6 +18,12 @@
 		"Bot Username" : "Faster Twitch Alerts",
 		"Avatar URL" :   "Link to Avatar Image",
 		"Discord ID" :   "Some Discord ID",
+		"Embeds" : [
+			{
+				"title" : "Some Title",
+				"description" : "Some Description"
+			}
+		],
         "Message Text" : {
 			"ban" : "{name} Was Just Banned",
 			"unban" : "{name} Was Just Unbanned",

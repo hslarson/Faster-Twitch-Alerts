@@ -1,6 +1,6 @@
+import concurrent.futures._base
 from Config import Config
 from Exceptions import *
-import concurrent.futures._base
 import aiohttp
 import asyncio
 import time

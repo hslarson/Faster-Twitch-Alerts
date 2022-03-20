@@ -1,4 +1,3 @@
-from sqlalchemy import false
 from Config import Config
 from Exceptions import *
 import aiohttp
