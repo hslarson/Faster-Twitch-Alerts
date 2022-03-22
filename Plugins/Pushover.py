@@ -1,26 +1,70 @@
+from Validate import check_keys, ALERT_TYPES
+from Exceptions import ConfigFormatError
 from Notifications import Notifications
 from Config import Config
 import time
 
 
-# A Class for Constructing Discord Notifications
+# A Class for Constructing Pushover Notifications
 class Pushover():
+
+	SETTINGS_KEY = "Pushover Settings"
+
+
+	# Makes Sure that the Plugin Settings Given in the Config File Are Valid
+	# Pre-Condition: Config File Has Been Loaded
+	# Post-Condition: An Error Was Triggered or Warnings (if any) Have Been Returned
+	def validate():
+		
+		# Recognized Settings
+		KEYS = {
+			"Soon Cooldown" : {float, int},
+			"Alerts"        : {str, (dict,bool)},
+			"API Token"     : {str, (dict,str)},
+			"Group Key"     : {str, (dict,str)},
+			"Embed URL"     : {str, (dict,str)},
+			"Priority"      : {int, (dict,int)},
+			"Devices"       : {str, (dict,str)},
+			"URL Title"     : {str, (dict,str)},
+			"Message Text"  : {str, (dict,str)},
+			"Message Title" : {str, (dict,str)},
+			"Sound"         : {str, (dict,str)}
+		}
+
+		# Check Key Datatypes
+		warnings = check_keys(Pushover.SETTINGS_KEY, Config.config_file[Pushover.SETTINGS_KEY], optional_keys=KEYS)
+		global_settings = Config.parse_preferences("GLOBAL", Pushover)
+
+		for streamer in Config.config_file["Streamers"]:
+			streamer_settings = Config.parse_preferences(streamer, Pushover)
+
+			# Check Datatypes for Streamer-Specific Settings
+			warnings += check_keys(Pushover.SETTINGS_KEY + "/" + streamer, streamer_settings, optional_keys=KEYS)
+
+			# Do a Dry-Run of Alerts
+			for alert in ALERT_TYPES :
+				if not Notifications.preference_resolver("Alerts", alert, global_settings, streamer_settings): continue
+
+				# Make Sure All Required Fields Are Present
+				for item in {"API Token", "Group Key", "Message Text"}:
+					if Notifications.preference_resolver(item, alert, global_settings, streamer_settings) == None:
+						raise ConfigFormatError("Pushover Alert Dry-Run Failed: Streamer=" + streamer + ". Message=" + alert + ". Missing Field=" + item)
+		
+		return warnings	
+
+
 
 	# Initialize Module
 	# Pre-Condition: Streamer Dict. Has Been Generated and Pushover Module Has Been Enabled in Config File
 	def init(streamer_dict):
 
-		# Incorperate Pushover Into Notifications Module
-		Notifications.pushover = Pushover.pushover
-		Notifications.PUSHOVER = 4
-
 		# Generate Global Settings
-		Notifications.PUSHOVER_GLOBAL_SETTINGS = Config.parse_preferences("GLOBAL", "Pushover")
+		Pushover.GLOBAL_SETTINGS = Config.parse_preferences("GLOBAL", Pushover)
 
 		# Generate Streamer Settings
 		for user in streamer_dict:
 
-			streamer_dict[user].module_preferences["Pushover"] = Config.parse_preferences(user, "Pushover")
+			streamer_dict[user].module_preferences["Pushover"] = Config.parse_preferences(user, Pushover)
 			streamer_dict[user].module_last_change["Pushover"] = 0
 
 
@@ -28,16 +72,18 @@ class Pushover():
 	# Generate a Pushover Notification
 	# Pre-Condition: An Alert Has Been Generated
 	# Post-Condition: A Valid Notification Payload Has Been Sent to Notifications.send()
-	async def pushover(streamer_obj, message):
+	async def alert(streamer_obj, message):
 
 		# Don't Send Messages That the User Doesn't Want
-		if not Notifications.preference_resolver("Alerts", message, Notifications.PUSHOVER_GLOBAL_SETTINGS, streamer_obj.module_preferences["Pushover"]):
+		if not Notifications.preference_resolver("Alerts", message, Pushover.GLOBAL_SETTINGS, streamer_obj.module_preferences["Pushover"]):
 			return
 
 		# Check & Reset the Soon Cooldown if Needed
 		elif message == "title" or message == "game":
 			
-			cooldown = Notifications.PUSHOVER_GLOBAL_SETTINGS["Soon Cooldown"]
+			cooldown = Notifications.preference_resolver("Soon Cooldown", message, Pushover.GLOBAL_SETTINGS, streamer_obj.module_preferences["Pushover"])
+			cooldown = float(cooldown) if cooldown != None else 0
+			
 			if time.time() > streamer_obj.module_last_change["Pushover"] + cooldown:
 				streamer_obj.module_last_change["Pushover"] = time.time()
 			else:
@@ -46,13 +92,12 @@ class Pushover():
 		# Get User Preferences
 		preferences = {}
 		for keyword in ("Message Text", "API Token", "Group Key", "Embed URL", "URL Title", "Devices", "Message Title", "Priority", "Sound"):
-			preferences[keyword] = Notifications.preference_resolver(keyword, message, Notifications.PUSHOVER_GLOBAL_SETTINGS, streamer_obj.module_preferences["Pushover"])
+			preferences[keyword] = Notifications.preference_resolver(keyword, message, Pushover.GLOBAL_SETTINGS, streamer_obj.module_preferences["Pushover"])
 
-		# Format Message and Bot Username
-		for pref in ("Message Text", "API Token", "Group Key", "Embed URL", "URL Title", "Devices", "Message Title", "Sound"):
-			if preferences[pref] != None:
-				preferences[pref] = Notifications.special_format(
-					str(preferences[pref]),
+			# Format Message and Bot Username
+			if preferences[keyword] != None and type(preferences[keyword]) == str:
+				preferences[keyword] = Notifications.special_format(
+					preferences[keyword],
 
 					name  = streamer_obj.name,
 					title = streamer_obj.last_title,
@@ -80,4 +125,5 @@ class Pushover():
 				payload[index] = preferences[pref]
 
 		# Send Message to Pushover
-		await Notifications.send("https://api.pushover.net/1/messages.json", Notifications.PUSHOVER, payload)
+		coro = Notifications.requests.post("https://api.pushover.net/1/messages.json", json=payload, timeout=10)
+		await Notifications.send(coro)

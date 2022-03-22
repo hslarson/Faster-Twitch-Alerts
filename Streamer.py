@@ -68,13 +68,14 @@ class Streamer():
 				
 				# Check for Game Changes
 				if self.last_game != channel_info["game_name"]:
-					Notifications.Handler.new_alert(self.name, "game")
 					self.last_game = channel_info["game_name"]
+					Notifications.Handler.new_alert(self.name, "game")
 
 				# Check for Title Changes
 				elif self.last_title != channel_info["title"]:
-					Notifications.Handler.new_alert(self.name, "title")
 					self.last_title = channel_info["title"]
+					Notifications.Handler.new_alert(self.name, "title")
+					
 
 			self.is_live = False
 

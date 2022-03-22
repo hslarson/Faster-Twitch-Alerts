@@ -10,7 +10,7 @@
 
 
 ## __What is "Faster Twitch Alerts"?__
-Faster Twitch Alerts is a highly customizable, lightning-fast alternative to Twitch's slow mobile notification system. Faster Twitch Alerts currently supports two notification platforms: Discord and Pushover.
+Faster Twitch Alerts is a highly customizable, lightning-fast alternative to Twitch's slow mobile notification system. Faster Twitch Alerts currently supports two notification platforms: Discord and Pushover. You can also [build your own plugins](#making-your-own-plugins).
 <br><br>
 
 The program can notify you when:
@@ -32,6 +32,7 @@ Disclaimer: This program is not associated in any way with Twitch, Discord, or P
 4. Run Main.py
     - If the program terminates unexpectedly, check the log file for more information
     - You can terminate the program at any time using 'ctrl+c'
+
 <hr>
 
 
@@ -182,7 +183,7 @@ Global settings for Discord alerts
 #### __Example Discord Settings Fields:__
 | Field Name | Description | Required? | Datatypes | [Alert-Specific Settings](#alert-specific-settings) | [Special Formatting](#special-formatting) |
 | - | - | - | - | - | - |
-| Soon Cooldown | Controls how often changes to an individual streamer's title or game will generate an alert by setting a cooldown period (units = seconds) | Yes | int, float | Not Allowed | Not Allowed |
+| Soon Cooldown | Controls how often changes to an individual streamer's title or game will generate an alert by setting a cooldown period (units = seconds) | No | int, float | Not Allowed | Not Allowed |
 | [Alerts](#alerts-field) | Controls what types of messages will generate an alert | No | str | Allowed | Not Allowed |
 | Webhook URL | The Webhook URL for the Discord channel which will receive the alert | No<sup>1</sup> | str | Allowed | Allowed |
 | Bot Username | The display name of the bot that will be the sender of the alert | No | str | Allowed | Allowed |
@@ -248,7 +249,7 @@ Global settings for Pushover alerts
 #### __Example Pushover Settings Fields:__
 | Field Name | Description | Required? | Datatypes | [Alert-Specific Settings](#alert-specific-settings) | [Special Formatting](#special-formatting) |
 | - | - | - | - | - | - |
-| Soon Cooldown | Controls how often changes to an individual streamer's title or game will generate an alert by setting a cooldown period (units = seconds) | Yes | int, float | Not Allowed | Not Allowed |
+| Soon Cooldown | Controls how often changes to an individual streamer's title or game will generate an alert by setting a cooldown period (units = seconds) | No | int, float | Not Allowed | Not Allowed |
 | [Alerts](#alerts-field) | Controls what types of messages will generate an alert | No | str | Allowed | Not Allowed |
 | API Token<sup>1</sup> | Pushover API token | No<sup>2</sup> | str | Allowed | Allowed |
 | Group Key<sup>1</sup> | Pushover User or Group Key | No<sup>2</sup> | str | Allowed | Allowed |
@@ -406,4 +407,42 @@ If/Else Statement Example:
 	"bans" : "{name} Was Just {'Ban' if message=='ban' else 'Unban'}ned"
 }
 ```
+<br><hr>
+
+## __Making Your Own Plugins__
+
+### Get your notifications <em>your</em> way! Here's how to make a custom plugin
 <br>
+
+### Step 1: Getting Started
+- Start by creating a python file containing a class with the name of your plugin
+- You may want to store your plugin in the 'Plugins' folder for convenience
+- There is an example file called 'Template.py' in the 'Plugins' folder
+<br>
+
+### Step 2: Help the program find your plugin
+- In Main.py, import your module
+- Add your plugin to the list of enabled plugins (Config.enabled_modules in Main.py)
+<br>
+
+### Step 3: Interfacing With the Program
+- If you add your plugin's settings to config.json, you should to add a member variable called 'SETTINGS_KEY' to your module to mark the field
+- There are four special functions that the main program will automatically try to use to interact with your plugin:
+	1. validate()
+		- This function is called before module initialization
+		- Used to check that the settings for your module have been correctly specified
+		- Optionally, you can return a list of 'warning' strings if you find any non-fatal issues
+		- Validate.py contains some helpful functions for validation
+	2. init(streamer_dict: dict)
+		- This function is used to initialize your module
+		- The full dictionary of streamer information is always passed to this function
+		- Read Streamer.py to see what information comes with the streamer dictionary
+	3. alert(streamer_obj: dict, message: str)
+		- Called every time an alert is triggered for a streamer
+		- A streamer's dictionary entry and the [type of alert](#alert-types) are always passed to this function
+	4. terminate()
+		- A 'destructor' for your plugin
+		- Called immediately before the program exits
+		- All exceptions that occur inside this function will be ignored
+- You aren't limited to just these functions, but they're there to make your life easier
+- These functions can be defined as either synchronous or asynchronous

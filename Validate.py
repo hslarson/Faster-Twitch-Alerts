@@ -1,27 +1,6 @@
 from Exceptions import ConfigFormatError
-from Notifications import Notifications
-from Config import Config
 
 
-# Special Classes for Indicating More Complex Datatypes
-class dictOf():
-	pass
-
-class dictOfStr(dictOf):
-	DATATYPE = str
-
-class dictOfInt(dictOf):
-	DATATYPE = int
-
-class dictOfBool(dictOf):
-	DATATYPE = bool
-
-class dictOfList(dictOf):
-	DATATYPE = list
-
-
-
-# *** DATATYPE CONSTANTS ***
 # Primary Keys
 REQUIRED_KEYS = {
 	"Twitch Settings" : dict,
@@ -42,72 +21,34 @@ TWITCH_REQUIRED_KEYS = {
 	"Refresh Rate"       : {float, int}
 }
 
-# Logger Keys
-LOGGER_REQUIRED_KEYS = {
-	"Log Level"    : str,
-	"Log Filepath" : str
-}
-LOGGER_OPTIONAL_KEYS = {
-	"Message Text" : {str, dictOfStr}
-}
-LOGGER_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "ALERT", "DEBUG", "NOTSET"}
-
-# Pushover Keys
-PUSHOVER_REQUIRED_KEYS = {
-	"Soon Cooldown" : {float, int},
-}
-PUSHOVER_OPTIONAL_KEYS = {
-	"Alerts"        : {str, dictOfBool},
-	"API Token"     : {str, dictOfStr},
-	"Group Key"     : {str, dictOfStr},
-	"Embed URL"     : {str, dictOfStr},
-	"Priority"      : {int, dictOfInt},
-	"Devices"       : {str, dictOfStr},
-	"URL Title"     : {str, dictOfStr},
-	"Message Text"  : {str, dictOfStr},
-	"Message Title" : {str, dictOfStr},
-	"Sound"         : {str, dictOfStr}
-}
-
-# Discord Keys
-DISCORD_REQUIRED_KEYS = {
-	"Soon Cooldown" : {float, int}
-}
-DISCORD_OPTIONAL_KEYS = {
-	"Alerts" :       {str, dictOfBool},
-	"Bot Username" : {str, dictOfStr},
-	"Avatar URL" :   {str, dictOfStr},
-	"Webhook URL" :  {str, dictOfStr},
-	"Message Text" : {str, dictOfStr},
-	"Embeds" :       {list, dictOfList},
-	"Discord ID" :   {str, dictOfStr},
-}
-
 # Streamer Keys
 STREAMER_REQUIRED_KEYS = {
 	"Ban Status" : bool,
 	"User ID" : str
 }
-STREAMER_OPTIONAL_KEYS = {
-	"Discord Settings"  : dict, 
-	"Pushover Settings" : dict
-}
 
 # Special Keys
 ACCEPTABLE_ALERT_SPECIFIC_KEYWORDS = {"all", "soon", "bans", "live", "title", "game", "offline", "ban", "unban"}
 ACCEPTABLE_ALERTS_KEYWORDS = {"all", "none", "soon", "bans", "live", "title", "game", "offline", "ban", "unban"}
-
-# Alert Test Constants
 ALERT_TYPES = {"live", "title", "game", "offline", "ban", "unban"}
+ALERT_DATATYPES = {str, (dict,bool)}
 
-LOGGER_REQUIRED_SETTINGS  = {"Message Text"}
-PUSOVER_REQUIRED_SETTINGS = {"API Token", "Group Key", "Message Text"}
-DISCORD_REQUIRED_SETTINGS = {"Webhook URL", "Message Text"}
-REQUIRED_SETTINGS = {
-	"Logger" : LOGGER_REQUIRED_KEYS,
-	"Pushover" : PUSOVER_REQUIRED_SETTINGS,
-	"Discord" : DISCORD_REQUIRED_SETTINGS
-}
+
+
+# Returns True if 'data' is a Dictionary of Streamer-Specific Settings
+def is_alert_specific(data):
+	
+	# Verify Datatype
+	if type(data) != dict:
+		return False
+
+	# Try to Find at Least One Alert-Specific Keyword
+	data_keys = [k.lower() for k in data]
+	for key in ACCEPTABLE_ALERT_SPECIFIC_KEYWORDS:
+		if key in data_keys:
+			return True
+	else:
+		return False
 
 
 
@@ -116,207 +57,145 @@ REQUIRED_SETTINGS = {
 # - The Dictionary Has All of the Required Keys
 # - The Dictionary's Keys All Have the Correct Datatypes (if specified)
 # - The Dictionary's Keys All Fall Under Either 'required_keys' or 'optional_keys'
-def check_keys(warnings, parent, dictionary, required_keys={}, optional_keys={}):
+def check_keys(dict_name, dictionary, required_keys={}, optional_keys={}):
+	warnings = []
 
+	# Make sure the disctionary includes all of the required keys
 	for key in required_keys:
-
-		# Make sure the disctionary includes all of the required keys
 		if key not in dictionary:
-			raise ConfigFormatError("KeyError! Couldn't find key: \'" + key + "\' in " + parent)
+			raise ConfigFormatError("KeyError! Couldn't find key: \'" + key + "\' in " + dict_name)
 
-		# Enforce datatypes if they are given
-		if type(required_keys) == dict:
-			check_datatypes(warnings, parent, key, dictionary, required_keys)
-	
+	# Collect Valid Datatypes (if any)
+	datatypes = dict()
+	if type(required_keys) == dict:
+		datatypes.update(required_keys)
+	if type(optional_keys) == dict:
+		datatypes.update(optional_keys)
+
 	for key in dictionary:
 
 		# Check For Extra Keys
 		if key not in required_keys and key not in optional_keys:
-			warnings.add("Unrecognized key in \"" + parent + "\": " + key)
+			warnings.append("Unrecognized key in \"" + dict_name + "\": " + key)
+
+		# Check Alerts
+		elif key == "Alerts":
+			check_alerts(warnings, dict_name + "/Alerts", dictionary[key])
 
 		# Enforce datatypes if they are given
-		elif key in optional_keys:
-			if type(optional_keys) == dict:
-				check_datatypes(warnings, parent, key, dictionary, optional_keys)
+		elif len(datatypes):
+			if not check_types(dictionary[key], datatypes[key]):
+				raise ConfigFormatError("Data Type Error! Incorrect Datatype Given for \"" + key + "\" in \"" + dict_name + "\". Acceptable types: " + type_string(datatypes[key]))
+
+	return warnings
 
 
 
-# Helper Function for check_keys(). Checks the Datatype of a Specific Key Given that Key's Dictionary and a Dictionary of Datatypes
-# Post-Condition: If no errors/warnings have been raised...
-# - The Dictionary's Key is a Valid Datatype or Valid Special Key
-# 	- Examples of Special Keys Include "Alerts" and Alert-Specific Settings
-def check_datatypes(warnings, parent, key, target_dict, datatypes_dict):
+# Helper Function for check_keys(). Validates the Datatypes of a Target Dictionary's Keys Given Some Accepted Datatypes
+# Post-Condition: Returns True if All of the Keys are Valid, False Otherwise
+def check_types(target, acceptable_types):
 
-	valid_type = False
-	alert_specific = False
+	if type(acceptable_types) != set:
+		acceptable_types = {acceptable_types}
 
-	target = target_dict[key]
-	datatypes = datatypes_dict[key]
+	for dt in acceptable_types:
+		if type(dt) == tuple:
+			if check_nested_types(target, dt):
+				return True
 
-	# *** Validate Datatypes of Primary Keys ***
-	# Case 1: 'datatypes' is a set of valid types
-	if type(datatypes) == set:
-
-		# Make Sure Target Type is in Set
-		for dt in datatypes:
-			if type(target) == dt or (type(target) == dict and dictOf.__subclasscheck__(dt)):
-				valid_type = True
-				alert_specific = type(target) == dict and dictOf.__subclasscheck__(dt)
+		elif type(dt) == type and type(target) == dt:
+			return True
 	
-	# Case 2: There's Only One Valid Datatype
-	elif type(target) == datatypes or (type(target) == dict and dictOf.__subclasscheck__(datatypes)):
-		valid_type = True
-		alert_specific = type(target) == dict and dictOf.__subclasscheck__(datatypes)
-	
-	# *** Validate Datatypes Within Special eys ***
-	if valid_type:
-			# Check Alerts Formatting
-			if key == "Alerts":
-				check_alerts(warnings, parent + "/Alerts", target)
-
-			# Check Keys With Alert-Specific Settings
-			elif alert_specific:
-				check_message_specific_settings(warnings, parent + "/" + key, target, ACCEPTABLE_ALERT_SPECIFIC_KEYWORDS, datatypes)
 	else:
-		raise ConfigFormatError("Data Type Error! Incorrect Datatype Given for \"" + key + "\" in \"" + parent + "\". Acceptable types: " + str(datatypes))
+		return False
 
 
 
-# Helper Function for check_datatypes(). Validates the Contents of the "Alerts" Key
-def check_alerts(warnings, parent, alerts):
+# Recursive Helper for check_types(). Parses Datatypes Given in Tuple Form
+# Each Entry is A 'Layer,' so (dict, list, str) is a Dictionary of Lists of Strings
+def check_nested_types(target, type_tuple, tuple_index=0):
 
-	# Check Alerts in String Form
+	# Stop Recursing Once there Are No More Layers
+	if tuple_index >= len(type_tuple):
+		return True
+	
+	# Check the Target at the Current Recursion Level
+	if not check_types(target, type_tuple[tuple_index]):
+		return False
+
+	# Check the Target's Items (if any)
+	if type(target) in {dict, list}:
+		for sub_target in target:
+			if type(target) == dict: sub_target = target[sub_target]
+
+			if not check_nested_types(sub_target, type_tuple, tuple_index+1):
+				return False
+	
+	return True
+
+
+
+# Helper Function for check_keys(). Validates the Contents of the "Alerts" Key
+def check_alerts(warnings, dict_name, alerts):
+	keys = []
+
+	# Parse Alerts in String Form
 	if type(alerts) == str:
-		seperated_list = [x.strip().replace("!", "") for x in str(alerts).split(",")]
-		for kw in seperated_list:
-			if kw not in ACCEPTABLE_ALERTS_KEYWORDS:
-				warnings.add("Unrecognized keyword in \"" + parent + "\": " + kw)
+		keys = [x.strip().replace("!", "") for x in str(alerts).split(",")]
 
-	# Check Alerts in Dictionary Form
+	# Parse Alerts in Dictionary Form
 	elif type(alerts) == dict:
-		check_message_specific_settings(warnings, parent, alerts, ACCEPTABLE_ALERTS_KEYWORDS, {bool})
+		keys = alerts.keys()
+	else:
+		raise ConfigFormatError("Data Type Error! Incorrect Datatype Given for \"Alerts\" in \"" + dict_name + "\". Acceptable types: " + type_string(ALERT_DATATYPES))
+
+	# Check for Extra Keys
+	for kw in keys:
+		if kw not in ACCEPTABLE_ALERTS_KEYWORDS:
+			warnings.append("Unrecognized keyword in \"" + dict_name + "\": " + kw)
 
 
 
-# Helper Function for check_datatypes(). Validates Alert-Specific Settings
-def check_message_specific_settings(warnings, parent, dictionary, acceptable_keys, acceptable_datatypes):
+# Helper for check_keys(), Returns a Human-Readable String of Accepted Datatypes
+def type_string(types):
+	out = []
 
-	# Collect Accetpable Datatypes
-	types = set()
-	for dt in acceptable_datatypes:
-		if dictOf.__subclasscheck__(dt):
-			types.add(dt.DATATYPE)
+	for dt in types:
+		if type(dt) == tuple:
+			out.append(" of ".join([t.__name__ for t in dt]))
 		else:
-			types.add(dt)
-
-	for key in dictionary:
-		# Check for unrecognized keys
-		if key not in acceptable_keys:
-			warnings.add("Unrecognized key in \"" + parent + "\": " + key)
-		
-		# Enforce Datatypes
-		elif (type(types) == set and type(dictionary[key]) in types) or type(dictionary[key]) == types:
-			continue
-		else:
-			raise ConfigFormatError("Data Type Error! Incorrect Datatype Given for \"" + key + "\" in \"" + parent + "\". Acceptable types: " + str(types))
-
-
-
-# Runs Through Each Alert Type to Make Sure the Requisite Info is Present
-def test_alerts(streamer, service):
-
-	# Generate Parsed Global Settings
-	parsed_global_settings = Config.parse_preferences("GLOBAL", service)
-
-	# Generate Parsed Streamer Settings
-	parsed_streamer_settings = Config.parse_preferences(streamer, service)
-
-	for msg in ALERT_TYPES:
-		
-		# Check if Alerts Are Enabled for Type
-		if service == "Logger" or Notifications.preference_resolver("Alerts", msg, parsed_global_settings, parsed_streamer_settings):
-			
-			# Make Sure All of the Required Message Fields Are Present
-			missing_fields = set()
-			for setting in REQUIRED_SETTINGS[service]:
-				if Notifications.preference_resolver(setting, msg, parsed_global_settings, parsed_streamer_settings) == None:
-					missing_fields.add(setting)
-			
-			if len(missing_fields) != 0:
-				raise ConfigFormatError(service + " Alert Test Failed: Streamer \"" + streamer + "\" is missing required fields " + str(missing_fields) + " for alert type \"" + msg + "\"")
+			out.append(dt.__name__)
+	
+	return ", ".join(out)
 
 
 
 # Primary Function For Validator.py. Runs Through A Battery of Tests to Make sure the Config File is Valid
 # Pre-Condition: Logger Has Been Initialized and Config File Has Been Loaded
 def validate():
-
-	warnings = set()
+	from Config import Config
 
 	# Check Overall Formatting
 	if type(Config.config_file) == list:
 		raise ConfigFormatError("config.json should look like a dictionary, not an array")
 
 	# Check Primary Keys
-	check_keys(warnings, "config.json", Config.config_file, REQUIRED_KEYS, OPTIONAL_KEYS)
+	setting_keys = dict([(module.SETTINGS_KEY, dict) for module in Config.enabled_modules if hasattr(module, "SETTINGS_KEY")])
+	warnings = check_keys("config.json", Config.config_file, REQUIRED_KEYS, setting_keys)
 
 	# Check Twitch Keys
-	check_keys(warnings, "Twitch Settings", Config.config_file["Twitch Settings"], TWITCH_REQUIRED_KEYS)
+	warnings += check_keys("Twitch Settings", Config.config_file["Twitch Settings"], TWITCH_REQUIRED_KEYS)
 
 	# Validate Refresh Rate
 	if Config.config_file["Twitch Settings"]["Refresh Rate"] <= 0:
 		raise ConfigFormatError("Refresh Rate Must Be Greter Than Zero")
 
-	# Check Logger Keys
-	check_keys(warnings, "Logger Settings", Config.config_file["Logger Settings"], LOGGER_REQUIRED_KEYS, LOGGER_OPTIONAL_KEYS)
-	
-	# Validate Log Level
-	if str(Config.config_file["Logger Settings"]["Log Level"]).upper() not in LOGGER_LOG_LEVELS:
-		warnings.add("Unrecognized Log Level: \"" + str(Config.config_file["Logger Settings"]["Log Level"]) + "\". Defaulting to INFO.")
-
-	# Check Pushover Keys
-	if "Pushover Settings" in Config.config_file:
-		Config.enabled_modules.add("Pushover")
-		check_keys(warnings, "Pushover Settings", Config.config_file["Pushover Settings"], PUSHOVER_REQUIRED_KEYS, PUSHOVER_OPTIONAL_KEYS)
-
-	# Check Discord Keys
-	if "Discord Settings" in Config.config_file:
-		Config.enabled_modules.add("Discord")
-		check_keys(warnings, "Discord Settings", Config.config_file["Discord Settings"], DISCORD_REQUIRED_KEYS, DISCORD_OPTIONAL_KEYS)
-
 	# Check Length of "Streamers" Array
 	if not len(Config.config_file["Streamers"]):
 		raise ConfigFormatError("\"Streamers\" Dictionary Cannot Be Empty")
 
+	# Check Main Keys in Streamer's Dictionary
 	for streamer in Config.config_file["Streamers"]:
-		
-		# Check Main Keys in Streamer's Dictionary
-		check_keys(warnings, "Streamers/" + streamer, Config.config_file["Streamers"][streamer], STREAMER_REQUIRED_KEYS, STREAMER_OPTIONAL_KEYS)
-
-		# Check Keys Within Streamer's "Discord Settings"
-		if "Discord Settings" in Config.config_file["Streamers"][streamer]:
-			if "Discord" not in Config.enabled_modules:
-				warnings.add("Discord Settings Given for " + streamer + " but no Global Discord settings were Found!")
-			else:
-				check_keys(warnings, "Streamers/" + streamer + "/Discord Settings", Config.config_file["Streamers"][streamer]["Discord Settings"], optional_keys=DISCORD_OPTIONAL_KEYS)
-		
-		# Check Keys Within Streamer's "Pushover Settings"
-		if "Pushover Settings" in Config.config_file["Streamers"][streamer]:
-			if "Pushover" not in Config.enabled_modules:
-				warnings.add("Pushover Settings Given for " + streamer + " but no Global Pushover settings were Found!")
-			else:
-				check_keys(warnings, "Streamers/" + streamer + "/Pushover Settings", Config.config_file["Streamers"][streamer]["Pushover Settings"], optional_keys=PUSHOVER_OPTIONAL_KEYS)
-
-		# Do A Dry-Run of Logger Alerts
-		if str(Config.config_file["Logger Settings"]["Log Level"]).upper() in {"ALERT", "DEBUG"}:
-			try: test_alerts("GLOBAL", "Logger")
-			
-			except (KeyboardInterrupt, GeneratorExit): raise
-			except:
-				warnings.add("Missing or Incomplete \"Message Text\" Fields in \"Logger Settings\".\n\tChange Log Level or Provide Message Text for All Alert Types if You Don't Want to See This Message")
-
-		# Do A Dry-Run of Discord/Pushover Alerts
-		for service in Config.enabled_modules:
-			test_alerts(streamer, service)
+		warnings += check_keys("Streamers/" + streamer, Config.config_file["Streamers"][streamer], STREAMER_REQUIRED_KEYS, setting_keys)
 	
 	return warnings

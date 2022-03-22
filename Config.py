@@ -1,4 +1,5 @@
 from Exceptions import ConfigFileError
+from Validate import is_alert_specific
 import asyncio
 import json
 import os
@@ -7,7 +8,7 @@ import os
 # The Config Class Handles All Operations Related to the config.json File, Including Loading, Parsing, Altering, and Saving
 class Config():
 
-	enabled_modules = set()
+	enabled_modules = []
 	file_lock = asyncio.Lock()
 
 
@@ -101,30 +102,30 @@ class Config():
 
 
 
-	# A General Function For Parsing Settings From the Config File
-	# The Function is Used by Both the Discord and Pushover Modules for Parsing Global and Streamer-Specific Settings
+	# A General Function For Parsing Global and Streamer-Specific Settings From the Config File
 	# Pre-Condition: A Valid Settings Parameter Has Been Provided in the Config File
 	# Post-Condition: A Dictionary of Settings Has Been Returned
 	def parse_preferences(streamer, service):
 		out = {}
 
 		# If Service is Disabled, Disable All Notifications
-		if service != "Logger" and service not in Config.enabled_modules:
+		if (streamer != "GLOBAL" and service not in Config.enabled_modules) or not hasattr(service, 'SETTINGS_KEY'):
 			return out
 
 		# Load All Settings for Service
-		# We assume the config file has the "Streamers" key since the KeyError would have been caught in Streamer.init_all()
-		if streamer == "GLOBAL" or (service + " Settings") in Config.config_file["Streamers"][streamer]:
-			settings = Config.config_file[service + " Settings"] if streamer == "GLOBAL" else Config.config_file["Streamers"][streamer][service + " Settings"]
+		if streamer == "GLOBAL":
+			settings = Config.config_file[service.SETTINGS_KEY]
+		elif service.SETTINGS_KEY in Config.config_file["Streamers"][streamer]:
+			settings = Config.config_file["Streamers"][streamer][service.SETTINGS_KEY]
 		else:
 			return out
 
 		# Add Everything But Alerts to Out
-		Config.__parse_settings(out, settings)
+		Config.parse_settings(out, settings)
 
 		# Save Alert Settings, or Just Return
 		if "Alerts" in settings:
-			Config.__parse_alerts(out, settings["Alerts"], streamer=="GLOBAL")
+			Config.parse_alerts(out, settings["Alerts"], streamer=="GLOBAL")
 
 		return out
 
@@ -133,7 +134,7 @@ class Config():
 	# Helper Function For parse_preferences() Used to Expand Keywords
 	# Pre-Condition: A Valid Settings Dictionary Has Been Provided in the Config File
 	# Post-Condition: All Settings Fields in Dictionary Form Have Had Their Keywords Expanded
-	def __parse_settings(out, settings):
+	def parse_settings(out, settings):
 
 		# Cycle through settings
 		for item in settings:
@@ -143,7 +144,7 @@ class Config():
 				continue
 
 			# If the user specifies message-specific settings, decode them
-			if type(settings[item]) == dict:	
+			if is_alert_specific(settings[item]):	
 
 				out[item] = {}
 				for key in settings[item]:
@@ -174,7 +175,7 @@ class Config():
 	# Post-Condition: A dictionary has been created with boolean values indicating the appropriate alert settings
 	# 	- If the defaults flag is True, we are generating global settings, meaning that each of the alert fields will be filled (False unless otherwise specified)
 	#	- If the defaults flag is False, we are generating streamer-specific settings, meaning that a partial dictionary is possible. Any unspecified fields will be filled with global defaults later
-	def __parse_alerts(out, alert_settings, defaults=False):
+	def parse_alerts(out, alert_settings, defaults=False):
 
 		# Add Alerts to Out Dict.
 		out["Alerts"] = {}

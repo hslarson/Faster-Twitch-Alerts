@@ -1,4 +1,4 @@
-from Config import Config
+from Validate import is_alert_specific
 from Exceptions import *
 import aiohttp
 import asyncio
@@ -8,14 +8,13 @@ import time
 # A Class for Constructing and Sending Notifications
 class Notifications():
 
+	alert_callbacks = [] # A List of Functions to Call When We Want to Send an Alert
+
 
 	# Initialize the Module
 	# Pre-Condition: The Config File Has Been Loaded and Validated
 	def init(config):
-
-		# Load Settings
 		Notifications.LIVE_COOLDOWN = 15
-		Notifications.LOGGER_GLOBAL_SETTINGS = Config.parse_preferences("GLOBAL", "Logger")
 
 		# Start requests session
 		client_timeout = aiohttp.ClientTimeout(total=10)
@@ -26,17 +25,13 @@ class Notifications():
 	# General Function for Sending Pushover and Discord Alerts
 	# Pre-Condition: A Message Payload Has Been Generated in the Pushover/Discord Modules
 	# Post-Condition: The Message Has Been Sent or An Error Occurred
-	async def send(url, type, payload):
-		try:
-			if type == Notifications.PUSHOVER:
-				response = await Notifications.requests.post(url, params=payload, timeout=10)
-			else:
-				response = await Notifications.requests.post(url, json=payload,   timeout=10)
+	async def send(coro):
+		try: response = await coro
 		
 		except (KeyboardInterrupt, GeneratorExit):
 			raise
 		except BaseException as err:
-			raise RequestsError(payload, err)		
+			raise RequestsError(err)		
 
 		if response.status // 100 != 2:
 			raise BadResponseCodeError(response)
@@ -46,7 +41,7 @@ class Notifications():
 	# Parse Python Expressions Enclosed in Curly Braces
 	# Post-Condition: The String Has Been Formatted or an Error Occurred
 	def special_format(format_string, **replace_vars):
-		
+
 		# Define Some Extra Local Variables
 		replace_vars['time'] = time.localtime()
 		replace_vars['nl'] = "\n"
@@ -54,8 +49,7 @@ class Notifications():
 		replace_vars['dq'] = "\""
 		replace_vars["sq"] = "\'"
 
-		format_string = str(format_string)
-		out_string = format_string
+		out_string = str(format_string)
 
 		start_index = 0
 		while 1:
@@ -89,7 +83,7 @@ class Notifications():
 			# Search for Key in Settings Dictionary
 			if setting_key in settings:
 
-				if type(settings[setting_key]) != dict:
+				if not is_alert_specific(settings[setting_key]):
 					return settings[setting_key]
 
 				elif message_type in settings[setting_key]:
@@ -106,28 +100,10 @@ class Notifications():
 		# Wait for the Handler to Finish Initializing
 		await Notifications.Handler.ready.wait()
 
-		streamer_obj = Notifications.Handler.streamer_dict[streamer]
-		logger = Notifications.Handler.logger
-		
-		# Send Log Notification
-		log_msg = Notifications.preference_resolver("Message Text", message, Notifications.LOGGER_GLOBAL_SETTINGS)
-		if log_msg != None:						
-			logger.alert( Notifications.special_format(
-				str(log_msg),
-
-				name = streamer_obj.name,
-				title = streamer_obj.last_title,
-				game = streamer_obj.last_game,
-				message = message
-			))
-
-		# Send Pushover and Discord Notifications
+		# Send Module Notifications
 		coros = []
-		if "Pushover" in Config.enabled_modules:
-			coros.append(Notifications.pushover(streamer_obj, message))
-
-		if "Discord" in Config.enabled_modules:
-			coros.append(Notifications.discord(streamer_obj, message))
+		for func in Notifications.alert_callbacks:
+			coros.append(func(Notifications.Handler.streamer_dict[streamer], message))
 
 		if len(coros):
 			await asyncio.gather(*coros, return_exceptions=False)
@@ -142,7 +118,6 @@ class Notifications():
 
 		main_loop = None
 		streamer_dict = None
-		logger = None
 
 
 		# Initializes the Handler With the Info Needed to Make Alerts

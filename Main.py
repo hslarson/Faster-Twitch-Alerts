@@ -9,6 +9,11 @@ import traceback
 import asyncio
 import time
 
+# >>> LOAD PLUGINS <<<
+from Plugins.Pushover import Pushover
+from Plugins.Discord import Discord
+Config.enabled_modules = [Pushover, Discord] 
+
 
 streamer_dict = {}
 refresh_rate = 1
@@ -26,7 +31,14 @@ async def init():
 
 	# Load and Validate The Config File
 	await Config.load()
-	validation_warnings = validate()
+	validation_warnings =  validate()
+	validation_warnings += Log.validate()
+
+	# >>> VALIDATE PLUGINS <<<
+	for module in Config.enabled_modules:
+		if hasattr(module, "validate"):
+			ret = await to_async(module.validate)()
+			if type(ret) == list: validation_warnings += ret
 
 	# Fetch Refresh Rate
 	refresh_rate = float(Config.config_file["Twitch Settings"]["Refresh Rate"])
@@ -44,20 +56,22 @@ async def init():
 	# Initialize the Dictionary of Streamers
 	streamer_dict = await Streamer.init_all(Config.config_file)
 
-	# Pass Info to Notification Handler
+	# >>> INITIALIZE PLUGINS <<<
+	for module in Config.enabled_modules:
+		if hasattr(module, "init"):
+			await to_async(module.init)(streamer_dict)
+
+	# >>> SET PLUGIN ALERT CALLBACK <<<
+	Notifications.alert_callbacks = [Log.alert]
+	for module in Config.enabled_modules:
+		if hasattr(module, "alert"):
+			Notifications.alert_callbacks.append(to_async(module.alert))
+	
+	# Start the Notification Handler
+	# Any Alerts that Arose During Initialization Will Now Be Sent
 	Notifications.Handler.streamer_dict = streamer_dict
-	Notifications.Handler.logger = Log.logger
 	Notifications.Handler.ready.set()
-
-	# Initialize Plugins
-	if "Pushover" in Config.enabled_modules:
-		from Plugins.Pushover import Pushover
-		Pushover.init(streamer_dict)
-
-	if "Discord" in Config.enabled_modules:
-		from Plugins.Discord import Discord
-		Discord.init(streamer_dict)
-
+	
 	# Set 'Initialized' Event
 	initialized.set()
 	Log.logger.info("Initialized Successfully. Awaiting Activity...")
@@ -142,8 +156,29 @@ async def shutdown():
 	if hasattr(Notifications, 'requests'):
 		await Notifications.requests.close()
 
+	# >>> KILL PLUGINS <<<
+	for module in Config.enabled_modules:
+		if hasattr(module, 'terminate'):
+			try: await to_async(module.terminate)()
+			except: pass
+
 	# Send Closing Message
 	Log.sessionEnded()
+
+
+
+# Returns an Asychronous Version of 'function'
+def to_async(function):
+
+	# Already async
+	if asyncio.iscoroutinefunction(function):
+		return function
+
+	# Not async
+	async def async_func(*args, **kwargs):
+		return function(*args, **kwargs)
+	
+	return async_func
 
 
 

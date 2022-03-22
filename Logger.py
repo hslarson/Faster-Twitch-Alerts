@@ -1,25 +1,75 @@
+from Validate import ALERT_TYPES, check_keys
+from Notifications import Notifications
 from TwitchAPI import TwitchAPI
+from Config import Config
 from Exceptions import *
 import logging
 import asyncio
 import os
-
 
 # A Class for Logging and Exception Handling
 class Log():
 
 	logger = None
 	initialized = asyncio.Event()
-	
+
+	SETTINGS_KEY = "Logger Settings"
+	LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "ALERT", "DEBUG", "NOTSET"}
+	MESSAGE_TEXT = dict()
+
+
+	# Makes Sure that the Plugin Settings Given in the Config File Are Valid
+	# Pre-Condition: Config File Has Been Loaded
+	# Post-Condition: An Error Was Triggered or Warnings (if any) Have Been Returned
+	def validate():
+		
+		# Recoginzed Settings
+		REQUIRED_KEYS = {
+			"Log Level"    : str,
+			"Log Filepath" : str
+		}
+		OPTIONAL_KEYS = {
+			"Message Text" : {str, (dict,str)}
+		}
+
+		# Check Logger Keys
+		warnings = check_keys(Log.SETTINGS_KEY, Config.config_file[Log.SETTINGS_KEY], REQUIRED_KEYS, OPTIONAL_KEYS)
+
+		# Validate Log Level
+		if str(Config.config_file[Log.SETTINGS_KEY]["Log Level"]).upper() not in Log.LOG_LEVELS:
+			warnings.append("Unrecognized Log Level: \"" + str(Config.config_file[Log.SETTINGS_KEY]["Log Level"]) + "\". Defaulting to INFO.")
+
+		# Test Alerts
+		if Config.config_file[Log.SETTINGS_KEY]["Log Level"].upper() in {"ALERT", "DEBUG"}:
+			
+			global_settings = Config.parse_preferences("GLOBAL", Log)
+			for msg in ALERT_TYPES:
+
+				text = Notifications.preference_resolver("Message Text", msg, global_settings)
+				if text == None:
+					warnings.append("No Log Message Given for Alert Type: " + msg)
+				else:
+					Log.MESSAGE_TEXT[msg] = text
+
+		return warnings
+
+
 
 	# Sets Up the Log File and Error Handler
 	# Pre-condition: Log Level Has Been Set in Config File
 	# Post-condition: Logger Has Been Created and A Log File Has Been Generated in logs/
-	def init(config):
+	def init(config=None):
+
+		if Log.initialized.is_set():
+			return
 		
 		try:
+			# Try to Load the Config File
+			if config == None:
+				config = Config.config_file
+
 			# Set Log File Path
-			rel_path = str(config["Logger Settings"]["Log Filepath"]).replace("\\", os.sep).replace("/", os.sep)
+			rel_path = str(config[Log.SETTINGS_KEY]["Log Filepath"]).replace("\\", os.sep).replace("/", os.sep)
 			logs_file = os.path.normpath( os.path.join(os.getcwd(), rel_path) )
 
 			# Format Log File
@@ -54,8 +104,25 @@ class Log():
 		Log.logger.setLevel(logging.INFO)
 
 		if config != None:
-			log_level = str(config["Logger Settings"]["Log Level"]).upper()
-			Log.logger.setLevel(eval("logging." + log_level))
+			log_level = str(config[Log.SETTINGS_KEY]["Log Level"]).upper() 
+			if log_level in Log.LOG_LEVELS:
+				Log.logger.setLevel(eval("logging." + log_level))
+
+
+
+	# Called By Notifications Module to Display Streamer Activity in Logs
+	async def alert(streamer_obj, message):
+		log_msg = Notifications.preference_resolver(message, None, Log.MESSAGE_TEXT)
+
+		if log_msg != None:						
+			Log.logger.alert( Notifications.special_format(
+				str(log_msg),
+
+				name = streamer_obj.name,
+				title = streamer_obj.last_title,
+				game = streamer_obj.last_game,
+				message = message
+			))
 
 
 
