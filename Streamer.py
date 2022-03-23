@@ -75,7 +75,6 @@ class Streamer():
 				elif self.last_title != channel_info["title"]:
 					self.last_title = channel_info["title"]
 					Notifications.Handler.new_alert(self.name, "title")
-					
 
 			self.is_live = False
 

@@ -91,7 +91,7 @@ class Discord():
 		# Check & Reset the Soon Cooldown if Needed
 		elif message == "title" or message == "game":
 			
-			cooldown = Notifications.preference_resolver("Soon Cooldown", Discord.GLOBAL_SETTINGS, streamer_obj.module_preferences["Discord"])
+			cooldown = Notifications.preference_resolver("Soon Cooldown", message, Discord.GLOBAL_SETTINGS, streamer_obj.module_preferences["Discord"])
 			cooldown = float(cooldown) if cooldown != None else 0
 			
 			if time.time() > streamer_obj.module_last_change["Discord"] + cooldown:
