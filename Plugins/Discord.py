@@ -126,6 +126,7 @@ class Discord():
 				temp_dict = {}
 				for key in embed:
 					if type(embed[key]) != str:
+						temp_dict[key] = embed[key]
 						continue
 					
 					temp_dict[key] = Notifications.special_format(
