@@ -182,7 +182,8 @@ class Log():
 			Log.logger.warning(msg)
 			
 			# Kill Program if the Request Was Bad
-			if exception.response.status // 100 == 4:
+			# Ignore 401's
+			if exception.response.status // 100 == 4 and exception.response.status != 401:
 
 				# Handle Rate-Limit Errors
 				if exception.response.status == 429:
